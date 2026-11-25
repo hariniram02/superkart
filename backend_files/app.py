@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 from flask import Flask, jsonify, request
 
-app = Flask(__name__)
+superkart_api = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "superkart_model.joblib")
@@ -45,4 +45,4 @@ def predict_batch():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    superkart_api.run(host="0.0.0.0", port=5000)
