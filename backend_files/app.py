@@ -1,3 +1,4 @@
+import io
 import os
 import joblib
 import pandas as pd
@@ -23,14 +24,20 @@ def normalize_record(record):
     return row
 
 
+def predict_from_dataframe(df_input):
+    if df_input.empty:
+        raise ValueError("Input dataset is empty")
+    records = [normalize_record(r) for r in df_input.to_dict(orient="records")]
+    normalized_df = pd.DataFrame(records)
+    preds = model.predict(normalized_df)
+    return [float(p) for p in preds]
+
+
 def predict_rows(payload):
     records = payload if isinstance(payload, list) else [payload]
     if not records:
         raise ValueError("Payload must not be empty")
-    normalized = [normalize_record(r) for r in records]
-    df_input = pd.DataFrame(normalized)
-    preds = model.predict(df_input)
-    return [float(p) for p in preds]
+    return predict_from_dataframe(pd.DataFrame(records))
 
 
 @superkart_api.post("/v1/predict")
@@ -47,10 +54,17 @@ def predict_single():
 
 @superkart_api.post("/v1/predictbatch")
 def predict_batch():
-    data = request.get_json(silent=True)
-    if data is None:
-        return jsonify({"error": "Invalid or missing JSON"}), 400
     try:
+        if "file" in request.files:
+            uploaded_file = request.files["file"]
+            raw_bytes = uploaded_file.read()
+            df_batch = pd.read_csv(io.BytesIO(raw_bytes))
+            preds = predict_from_dataframe(df_batch)
+            return jsonify({"predictions": preds, "count": len(preds)})
+
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({"error": "Expected multipart CSV file 'file' or JSON payload"}), 400
         preds = predict_rows(data)
         return jsonify({"predictions": preds, "count": len(preds)})
     except Exception as exc:
